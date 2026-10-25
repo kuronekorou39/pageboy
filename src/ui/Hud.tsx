@@ -4,6 +4,7 @@ import type { FolderMode } from "../core/types";
 interface Props {
   visible: boolean;
   workName: string;
+  author: string | null;
   page: number;
   pageCount: number;
   /** ページ内の位置。ページ送りなら「2 / 3」、連続なら「42%」 */
@@ -32,7 +33,10 @@ export function Hud(p: Props) {
         ?
       </button>
       <div class={`hud ${p.visible ? "visible" : ""}`}>
-        <span class="name">{p.workName}</span>
+        <span class="name">
+          {p.author && <span class="author">{p.author} / </span>}
+          {p.workName}
+        </span>
         {p.message && <span class="msg">{p.message}</span>}
         <span>{p.page + 1} / {p.pageCount}</span>
         <span>▾ {p.position}</span>

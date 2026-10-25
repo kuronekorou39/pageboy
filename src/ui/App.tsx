@@ -487,7 +487,7 @@ export function App() {
   // ウィンドウタイトル
   useEffect(() => {
     void getCurrentWindow()
-      .setTitle(work ? `${work.name} - pageboy` : "pageboy")
+      .setTitle(work ? `${work.author ? `${work.author} / ` : ""}${work.name} - pageboy` : "pageboy")
       .catch(() => {});
   }, [work]);
 
@@ -561,6 +561,7 @@ export function App() {
         <Hud
           visible={hudVisible}
           workName={work.name}
+          author={work.author}
           page={displayPage}
           pageCount={work.pages.length}
           position={position}

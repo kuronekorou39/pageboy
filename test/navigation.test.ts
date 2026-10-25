@@ -5,8 +5,8 @@ import type { Cursor, FolderMode, Library } from "../src/core/types";
 const library: Library = {
   root: "/lib",
   works: [
-    { path: "/lib/a", name: "a", pages: ["/lib/a/1.png", "/lib/a/2.png", "/lib/a/3.png"] },
-    { path: "/lib/b", name: "b", pages: ["/lib/b/1.png", "/lib/b/2.png"] },
+    { path: "/lib/a", name: "a", author: null, pages: ["/lib/a/1.png", "/lib/a/2.png", "/lib/a/3.png"] },
+    { path: "/lib/b", name: "b", author: null, pages: ["/lib/b/1.png", "/lib/b/2.png"] },
   ],
 };
 

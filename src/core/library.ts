@@ -1,4 +1,4 @@
-import type { Library, Work } from "./types";
+import type { Library, RawLibrary, Work } from "./types";
 
 const collator = new Intl.Collator(["ja", "en"], { numeric: true, sensitivity: "base" });
 
@@ -12,11 +12,36 @@ export function basename(path: string): string {
   return path.slice(i + 1);
 }
 
-/** Rust から受け取った走査結果を表示順に並べ替える */
-export function buildLibrary(raw: Library): Library {
+export function dirname(path: string): string {
+  const i = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+  return i < 0 ? "" : path.slice(0, i);
+}
+
+function samePath(a: string, b: string): boolean {
+  const norm = (p: string) => p.replace(/[\\/]+$/, "").replace(/\\/g, "/");
+  return norm(a) === norm(b);
+}
+
+/**
+ * フォルダ名から作者と題名を読む(命名規則は library/README.md)。
+ * `[作者] 題名` なら角括弧の中が作者。なければ親フォルダが作者。
+ * ライブラリ直下(または root 自体)の作品は作者なし。
+ */
+export function parseWorkName(path: string, root: string): { author: string | null; name: string } {
+  const folder = basename(path);
+  const m = /^\[([^\]]+)\]\s*(.*)$/.exec(folder);
+  if (m && m[2]) return { author: m[1]!.trim(), name: m[2].trim() };
+  const parent = dirname(path);
+  if (!parent || samePath(path, root) || samePath(parent, root)) return { author: null, name: folder };
+  return { author: basename(parent), name: folder };
+}
+
+/** Rust から受け取った走査結果に作者を付け、表示順に並べ替える */
+export function buildLibrary(raw: RawLibrary): Library {
   const works: Work[] = raw.works
     .map((w) => ({
-      ...w,
+      path: w.path,
+      ...parseWorkName(w.path, raw.root),
       pages: [...w.pages].sort((a, b) => naturalCompare(basename(a), basename(b))),
     }))
     .sort((a, b) => naturalCompare(a.path, b.path));
