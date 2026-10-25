@@ -1,0 +1,34 @@
+{
+  "name": "pageboy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ページ漫画をハンズフリーで読むビューア。横幅フィットしたページを画面ごとに送り、末尾で次ページへ進む",
+  "author": {
+    "name": "rou39",
+    "url": "https://rou39.com"
+  },
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "app": "tauri dev",
+    "app:build": "tauri build",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/plugin-dialog": "^2.7.3",
+    "preact": "^11.0.1"
+  }
+}

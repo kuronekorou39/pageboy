@@ -1,0 +1,266 @@
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  color: #ddd;
+  font-family: system-ui, "Segoe UI", "Yu Gothic UI", "Meiryo", sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+.root {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* HUD が消えているあいだはマウスカーソルも隠す */
+.root.idle {
+  cursor: none;
+}
+
+.page {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: transform 350ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation: fadein 180ms ease-out;
+  will-change: transform;
+}
+
+@keyframes fadein {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.dot {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #555;
+  opacity: 0.6;
+}
+
+.dot.playing {
+  background: #4caf50;
+}
+
+.hud {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 14px 18px 12px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  font-size: 14px;
+  display: flex;
+  gap: 18px;
+  align-items: baseline;
+  opacity: 0;
+  transition: opacity 250ms;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.hud.visible {
+  opacity: 1;
+}
+
+.hud .name {
+  font-weight: 600;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud .msg {
+  color: #ffd27a;
+}
+
+.hud .hint {
+  color: #888;
+}
+
+.empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: #999;
+}
+
+.empty h1 {
+  font-weight: 500;
+  font-size: 28px;
+  color: #ccc;
+  margin: 0;
+}
+
+.empty button {
+  font-size: 16px;
+  padding: 10px 22px;
+  background: #222;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.empty button:hover {
+  background: #333;
+}
+
+.help {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-panel {
+  background: #161616;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 20px 28px;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.help h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.help table {
+  border-collapse: collapse;
+}
+
+.help td {
+  padding: 4px 14px 4px 0;
+  font-size: 14px;
+}
+
+.help .keys {
+  white-space: nowrap;
+}
+
+.help kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 1px 7px;
+  margin-right: 5px;
+  border: 1px solid #555;
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: #222;
+  font-family: inherit;
+  font-size: 12px;
+  text-align: center;
+}
+
+.help .note {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: #999;
+}
+
+/* --- 連続モード --- */
+.strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  transition: transform 350ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: transform;
+}
+
+.strip-page {
+  position: absolute;
+  background: #111;
+}
+
+.strip-page img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: fadein 180ms ease-out;
+}
+
+/* --- 操作一覧ボタン --- */
+.help-button {
+  position: absolute;
+  top: 8px;
+  right: 30px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #666;
+  background: rgba(20, 20, 20, 0.7);
+  color: #ddd;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0.25;
+  transition: opacity 250ms;
+}
+
+.help-button.visible,
+.help-button:hover {
+  opacity: 1;
+}
+
+.help-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.help .close {
+  background: none;
+  border: 1px solid #555;
+  border-radius: 6px;
+  color: #ccc;
+  font-size: 16px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.help .lead {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #bbb;
+}
+
+.help .paths code {
+  color: #aaa;
+  font-size: 11px;
+}
+
+.fatal {
+  padding: 24px;
+  color: #f88;
+}
+
+.fatal pre {
+  white-space: pre-wrap;
+  color: #ddd;
+  font-size: 12px;
+}
