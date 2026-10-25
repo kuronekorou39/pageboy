@@ -1,7 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { actionForKey, type Action } from "../core/keymap";
-import { buildLibrary, findWorkIndex } from "../core/library";
+import { SORT_LABELS, buildLibrary, findWorkIndex, nextSortOrder, pageIndex, sortWorks, type SortOrder } from "../core/library";
 import {
   backward,
   firstPage,
@@ -16,9 +16,12 @@ import { ShuffleBag } from "../core/random";
 import {
   DEFAULT_SETTINGS,
   faster,
+  favoriteCount,
   folderState,
+  isFavorite,
   parseSettings,
   slower,
+  toggleFavorite,
   toggleMode,
   toggleViewMode,
   zoomIn,
@@ -42,6 +45,7 @@ import { backend, type AppInfo } from "./backend";
 import { Help } from "./Help";
 import { Hud } from "./Hud";
 import { ImageCache, type LoadedImage } from "./imageCache";
+import { LibraryList } from "./LibraryList";
 import { StripViewer } from "./StripViewer";
 import { Viewer } from "./Viewer";
 
@@ -65,13 +69,15 @@ export function App() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
-  const [library, setLibrary] = useState<Library | null>(null);
+  /** 走査結果(名前順)。表示順は settings.sortOrder で並べ替えた library を使う */
+  const [rawLibrary, setRawLibrary] = useState<Library | null>(null);
   const [cursor, setCursor] = useState<Cursor | null>(null);
   const [image, setImage] = useState<LoadedImage | null>(null);
   const [viewport, setViewport] = useState<Size>(viewportSize);
   const [playing, setPlaying] = useState(false);
   const [panX, setPanX] = useState(0.5);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
   const [hudVisible, setHudVisible] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   /** 連続モード用。作品パス → 各ページの縦横 */
@@ -81,6 +87,7 @@ export function App() {
 
   const cache = useRef(new ImageCache(backend.readImage, 12));
   const bags = useRef(new Map<string, ShuffleBag>());
+  const libraryBag = useRef<{ total: number; bag: ShuffleBag } | null>(null);
   const history = useRef<Cursor[]>([]);
   const hudTimer = useRef<number | undefined>(undefined);
   const lastWheel = useRef(0);
@@ -90,10 +97,16 @@ export function App() {
   const cursorRef = useRef(cursor);
   cursorRef.current = cursor;
 
+  const library: Library | null = useMemo(
+    () => (rawLibrary ? { root: rawLibrary.root, works: sortWorks(rawLibrary.works, settings.sortOrder) } : null),
+    [rawLibrary, settings.sortOrder],
+  );
+  const pages = useMemo(() => (library ? pageIndex(library) : null), [library]);
+
   const work: Work | null = library && cursor ? (library.works[cursor.work] ?? null) : null;
   const mode = work ? folderState(settings, work.path).mode : "sequential";
-  // 連続モードは順番モードの作品にだけ使う。ランダムはページ単位で動かす
-  const stripActive = settings.viewMode === "strip" && mode === "sequential" && work !== null;
+  // 連続モードは「順番に読む」ときだけ使う。ランダム(作品ごと / ライブラリ全体)はページ単位で動かす
+  const stripActive = settings.viewMode === "strip" && mode === "sequential" && !settings.libraryRandom && work !== null;
 
   // ---- ページモードのレイアウト ----
   const pagePath = work && cursor ? (work.pages[cursor.page] ?? null) : null;
@@ -137,11 +150,13 @@ export function App() {
   );
 
   const folders = settings.folders;
+  const libraryRandom = settings.libraryRandom;
   const nav: NavContext | null = useMemo(
     () =>
-      library
+      library && pages
         ? {
             library,
+            libraryRandom,
             modeOf: (w) => folders[w.path]?.mode ?? "sequential",
             randomPage: (w, current) => {
               let bag = bags.current.get(w.path);
@@ -151,9 +166,18 @@ export function App() {
               }
               return bag.next(current);
             },
+            randomAnywhere: (current) => {
+              // 全ページを 1 本の袋に入れて引く。引き切るまで同じページは出ない
+              let lb = libraryBag.current;
+              if (!lb || lb.total !== pages.total) {
+                lb = { total: pages.total, bag: new ShuffleBag(pages.total) };
+                libraryBag.current = lb;
+              }
+              return pages.locate(lb.bag.next(pages.indexOf(current)));
+            },
           }
         : null,
-    [library, folders],
+    [library, pages, folders, libraryRandom],
   );
   const navRef = useRef(nav);
   navRef.current = nav;
@@ -162,19 +186,24 @@ export function App() {
   const openLibrary = useCallback(
     async (root: string, s: Settings, quiet = false): Promise<boolean> => {
       try {
-        const lib = buildLibrary(await backend.scanLibrary(root));
-        if (lib.works.length === 0) {
+        const raw = buildLibrary(await backend.scanLibrary(root));
+        if (raw.works.length === 0) {
           if (!quiet) notify(`画像のあるフォルダが見つかりません: ${root}`);
           return false;
         }
         bags.current.clear();
+        libraryBag.current = null;
         history.current = [];
-        setLibrary(lib);
-        const wi = Math.max(0, findWorkIndex(lib, s.lastWork));
-        const w = lib.works[wi]!;
+        setRawLibrary(raw);
+        const sorted = sortWorks(raw.works, s.sortOrder);
+        const known = findWorkIndex({ root, works: sorted }, s.lastWork);
+        const wi = Math.max(0, known);
+        const w = sorted[wi]!;
         const page = Math.min(folderState(s, w.path).lastPage, w.pages.length - 1);
         setCursor({ work: wi, page, step: 0 });
         setSettings((prev) => ({ ...prev, lastLibrary: root }));
+        // 読みかけの作品がなく作品が複数あるなら、まず一覧から選んでもらう
+        if (known < 0 && sorted.length > 1) setListOpen(true);
         touchHud();
         return true;
       } catch (e) {
@@ -310,13 +339,14 @@ export function App() {
   const advanceRef = useRef(advance);
   advanceRef.current = advance;
 
-  // 自動再生。画像(連続モードならページの大きさ)が揃ってから間隔を数える
+  // 自動再生。画像(連続モードならページの大きさ)が揃ってから間隔を数える。一覧や操作一覧を開いているあいだは止める
   const autoReady = stripActive ? hasSizes : ready;
+  const overlayOpen = helpOpen || listOpen;
   useEffect(() => {
-    if (!playing || !autoReady || !cursor || helpOpen) return;
+    if (!playing || !autoReady || !cursor || overlayOpen) return;
     const t = window.setTimeout(() => advanceRef.current(true), settings.intervalMs);
     return () => window.clearTimeout(t);
-  }, [playing, autoReady, cursor, step, stripYc, settings.intervalMs, helpOpen]);
+  }, [playing, autoReady, cursor, step, stripYc, settings.intervalMs, overlayOpen]);
 
   const toggleFullscreen = useCallback(async () => {
     const w = getCurrentWindow();
@@ -327,6 +357,32 @@ export function App() {
     const dir = await backend.pickFolder();
     if (dir) await openLibrary(dir, settingsRef.current);
   }, [openLibrary]);
+
+  /** 並び順を変える。いま読んでいる作品の添字は並び替え後の位置に付け替える */
+  const changeSort = useCallback(
+    (order: SortOrder) => {
+      const path = work?.path;
+      setSettings((s) => ({ ...s, sortOrder: order }));
+      if (rawLibrary && path) {
+        const i = sortWorks(rawLibrary.works, order).findIndex((w) => w.path === path);
+        if (i >= 0) setCursor((c) => (c ? { ...c, work: i } : c));
+      }
+      history.current = []; // 添字が変わるので履歴は捨てる
+    },
+    [rawLibrary, work],
+  );
+
+  /** 一覧から作品を選ぶ。読みかけならその位置から */
+  const selectWork = useCallback(
+    (index: number) => {
+      const w = library?.works[index];
+      if (!w) return;
+      const page = Math.min(folderState(settingsRef.current, w.path).lastPage, w.pages.length - 1);
+      go({ work: index, page, step: 0 });
+      setListOpen(false);
+    },
+    [library, go],
+  );
 
   const dispatch = useCallback(
     (action: Action) => {
@@ -341,6 +397,15 @@ export function App() {
         case "toggle-help":
           setHelpOpen((h) => !h);
           return;
+        case "open-list":
+          if (library) setListOpen((o) => !o);
+          return;
+        case "cycle-sort": {
+          const order = nextSortOrder(settings.sortOrder);
+          changeSort(order);
+          notify(`並び順: ${SORT_LABELS[order]}`);
+          return;
+        }
         case "zoom-in":
           setSettings((s) => ({ ...s, zoom: zoomIn(s.zoom) }));
           return;
@@ -414,9 +479,31 @@ export function App() {
           go(prevWork(nav, eff));
           return;
         case "first-page":
+          // ランダムで気に入った作品を、ここから順に読み直すための操作。全体ランダムは解除する
+          if (settings.libraryRandom) {
+            setSettings((s) => ({ ...s, libraryRandom: false }));
+            notify("全体ランダムを解除。この作品を先頭から順に読みます");
+          }
           if (stripActive) setStripY(0);
           else go(firstPage(eff));
           return;
+        case "toggle-library-random": {
+          const on = !settings.libraryRandom;
+          setSettings((s) => ({ ...s, libraryRandom: on }));
+          if (on) {
+            go(nav.randomAnywhere(eff));
+            notify("ライブラリ全体からランダムに見ます(Home で今の作品を先頭から)");
+          } else {
+            notify("全体ランダムを解除");
+          }
+          return;
+        }
+        case "toggle-favorite": {
+          const was = isFavorite(settings, work.path, displayPage);
+          setSettings((s) => toggleFavorite(s, work.path, displayPage));
+          notify(was ? "お気に入りから外しました" : "♥ お気に入りに付けました");
+          return;
+        }
         case "toggle-view": {
           const next = toggleViewMode(settings.viewMode);
           // 連続 → ページに戻るときは、いま見ているページから続ける
@@ -438,14 +525,15 @@ export function App() {
       }
     },
     [
-      touchHud, toggleFullscreen, pickAndOpen, nav, cursor, work, displayPage, stripActive, step,
+      touchHud, toggleFullscreen, pickAndOpen, library, changeSort, nav, cursor, work, displayPage, stripActive, step,
       stripYc, viewport.height, settings, go, advance, notify,
     ],
   );
 
-  // キーボード
+  // キーボード。一覧を開いているあいだは一覧側がキーを受け持つ
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (listOpen) return;
       if (e.key === "Escape") {
         setHelpOpen(false);
         e.preventDefault();
@@ -458,7 +546,7 @@ export function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [dispatch]);
+  }, [dispatch, listOpen]);
 
   // 画面サイズ
   useEffect(() => {
@@ -493,6 +581,7 @@ export function App() {
 
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
+    if (overlayOpen) return;
     const now = Date.now();
     if (now - lastWheel.current < WHEEL_THROTTLE_MS) return;
     lastWheel.current = now;
@@ -507,10 +596,10 @@ export function App() {
   return (
     <div
       class={`root ${hudVisible ? "" : "idle"}`}
-      onClick={() => library && dispatch("forward")}
+      onClick={() => library && !overlayOpen && dispatch("forward")}
       onContextMenu={(e) => {
         e.preventDefault();
-        if (library) dispatch("backward");
+        if (library && !overlayOpen) dispatch("backward");
       }}
       onWheel={onWheel}
       onMouseMove={touchHud}
@@ -569,9 +658,25 @@ export function App() {
           intervalMs={settings.intervalMs}
           zoom={settings.zoom}
           mode={mode}
+          libraryRandom={settings.libraryRandom}
           viewMode={stripActive ? "strip" : "page"}
+          favorite={isFavorite(settings, work.path, displayPage)}
+          favoriteCount={favoriteCount(settings, work.path)}
+          sortLabel={SORT_LABELS[settings.sortOrder]}
           message={message}
           onHelp={() => setHelpOpen((h) => !h)}
+          onList={() => setListOpen((o) => !o)}
+        />
+      )}
+      {listOpen && library && (
+        <LibraryList
+          works={library.works}
+          currentIndex={cursor?.work ?? -1}
+          sortOrder={settings.sortOrder}
+          favorites={settings.favorites}
+          onSelect={selectWork}
+          onSortChange={changeSort}
+          onClose={() => setListOpen(false)}
         />
       )}
       {helpOpen && (

@@ -5,16 +5,18 @@ import type { Cursor, FolderMode, Library } from "../src/core/types";
 const library: Library = {
   root: "/lib",
   works: [
-    { path: "/lib/a", name: "a", author: null, pages: ["/lib/a/1.png", "/lib/a/2.png", "/lib/a/3.png"] },
-    { path: "/lib/b", name: "b", author: null, pages: ["/lib/b/1.png", "/lib/b/2.png"] },
+    { path: "/lib/a", name: "a", author: null, date: null, pages: ["/lib/a/1.png", "/lib/a/2.png", "/lib/a/3.png"] },
+    { path: "/lib/b", name: "b", author: null, date: null, pages: ["/lib/b/1.png", "/lib/b/2.png"] },
   ],
 };
 
-function ctx(modes: Record<string, FolderMode> = {}, randomPage = () => 1): NavContext {
+function ctx(modes: Record<string, FolderMode> = {}, randomPage = () => 1, libraryRandom = false): NavContext {
   return {
     library,
     modeOf: (w) => modes[w.path] ?? "sequential",
     randomPage,
+    libraryRandom,
+    randomAnywhere: () => ({ work: 1, page: 1, step: 0 }),
   };
 }
 
@@ -76,5 +78,27 @@ describe("ページ・作品単位の移動", () => {
     expect(nextWork(ctx(), at(0, 1, 1))).toEqual(at(1, 0, 0));
     expect(prevWork(ctx(), at(1, 1, 1))).toEqual(at(0, 0, 0));
     expect(prevWork(ctx(), at(0, 0, 0))).toBeNull();
+  });
+});
+
+describe("ライブラリ全体ランダム", () => {
+  const c = ctx({}, () => 1, true);
+  it("ステップが残っていれば次のステップ", () => {
+    expect(forward(c, at(0, 0, 0), 3)).toEqual(at(0, 0, 1));
+  });
+  it("ページを読み終えたら全体からランダムな場所へ(作品のモードより優先)", () => {
+    expect(forward(c, at(0, 0, 2), 3)).toEqual(at(1, 1, 0));
+    expect(forward(ctx({ "/lib/a": "random" }, () => 2, true), at(0, 0, 0), 1)).toEqual(at(1, 1, 0));
+  });
+  it("次のページも全体からランダム", () => {
+    expect(nextPage(c, at(0, 0, 0))).toEqual(at(1, 1, 0));
+  });
+  it("戻るはステップ 0 なら null(履歴で戻る)", () => {
+    expect(backward(c, at(0, 1, 1))).toEqual(at(0, 1, 0));
+    expect(backward(c, at(0, 1, 0))).toBeNull();
+  });
+  it("前の作品 / 次の作品は順番どおり", () => {
+    expect(nextWork(c, at(0, 2, 0))).toEqual(at(1, 0, 0));
+    expect(prevWork(c, at(1, 0, 0))).toEqual(at(0, 0, 0));
   });
 });

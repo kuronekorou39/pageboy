@@ -25,6 +25,8 @@ struct Work {
     path: String,
     name: String,
     pages: Vec<String>,
+    /// フォルダの更新日時(UNIX 秒)。並べ替えの手がかりに使う。取れなければ None
+    modified: Option<u64>,
 }
 
 #[derive(Serialize)]
@@ -91,10 +93,16 @@ fn collect_works(dir: &Path, depth: usize, out: &mut Vec<Work>) -> std::io::Resu
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| dir.display().to_string());
+        let modified = std::fs::metadata(dir)
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs());
         out.push(Work {
             path: dir.to_string_lossy().into_owned(),
             name,
             pages,
+            modified,
         });
     }
     if depth < MAX_SCAN_DEPTH {

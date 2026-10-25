@@ -15,6 +15,10 @@ export type Action =
   | "pan-left"
   | "pan-right"
   | "toggle-mode"
+  | "toggle-library-random"
+  | "toggle-favorite"
+  | "open-list"
+  | "cycle-sort"
   | "toggle-view"
   | "toggle-fullscreen"
   | "open-library"
@@ -59,7 +63,12 @@ export const KEY_BINDINGS: KeyBinding[] = [
   { action: "prev-page", codes: [",", "i"], keys: [",", "I"], label: "前のページ" },
   { action: "next-work", codes: ["n"], keys: ["N"], label: "次の作品" },
   { action: "prev-work", codes: ["p"], keys: ["P"], label: "前の作品" },
-  { action: "first-page", codes: ["Home"], keys: ["Home"], label: "作品の先頭へ" },
+  { action: "first-page", codes: ["Home"], keys: ["Home"], label: "この作品を先頭から順に読む" },
+  { action: "open-list", codes: ["g", "Tab"], keys: ["G", "Tab"], label: "作品一覧(絞り込み・並び順・お気に入り)" },
+  { action: "cycle-sort", codes: ["t"], keys: ["T"], label: "並び順を切り替え(新しい順 → 古い順 → 名前順)" },
+  { action: "toggle-library-random", codes: ["r"], keys: ["R"], label: "ライブラリ全体からランダムに見る 入 / 切" },
+  { action: "toggle-mode", codes: ["m"], keys: ["M"], label: "この作品を 順番 / ランダム 切替" },
+  { action: "toggle-favorite", codes: ["s"], keys: ["S"], label: "このページをお気に入りに 付ける / 外す" },
   { action: "faster", codes: ["]", "+"], keys: ["]", "+"], label: "速くする" },
   { action: "slower", codes: ["[", "-"], keys: ["[", "-"], label: "遅くする" },
   { action: "zoom-in", codes: ["z"], keys: ["Z"], label: "拡大" },
@@ -68,7 +77,6 @@ export const KEY_BINDINGS: KeyBinding[] = [
   { action: "pan-left", codes: ["a"], keys: ["A"], label: "左へずらす(拡大中)" },
   { action: "pan-right", codes: ["d"], keys: ["D"], label: "右へずらす(拡大中)" },
   { action: "toggle-view", codes: ["v"], keys: ["V"], label: "ページ送り / 連続スクロール 切替" },
-  { action: "toggle-mode", codes: ["m"], keys: ["M"], label: "この作品を 順番 / ランダム 切替" },
   { action: "toggle-fullscreen", codes: ["f", "F11"], keys: ["F", "F11"], label: "全画面" },
   { action: "open-library", codes: ["o"], keys: ["O"], label: "フォルダを開く" },
   { action: "toggle-help", codes: ["h", "?", "Escape"], keys: ["H", "?", "Esc"], label: "操作一覧を開く / 閉じる" },

@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 // Tauri が devUrl として参照するので port は固定する
 export default defineConfig({
@@ -12,4 +12,6 @@ export default defineConfig({
   envPrefix: ["VITE_", "TAURI_ENV_*"],
   oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
   build: { outDir: "dist", emptyOutDir: true, target: "es2022" },
+  // tools/ の拡張機能は node --test で動かすので vitest の対象にしない
+  test: { include: ["test/**/*.test.ts"] },
 });

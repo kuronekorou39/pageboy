@@ -5,6 +5,10 @@ export interface NavContext {
   modeOf: (work: Work) => FolderMode;
   /** ランダムモードで次に見せるページ番号。current は今のページ */
   randomPage: (work: Work, current: number) => number;
+  /** true ならページを読み終えるたびにライブラリ全体からランダムなページへ(作品ごとのモードより優先) */
+  libraryRandom: boolean;
+  /** ライブラリ全体から次に見せる場所。current は今の位置 */
+  randomAnywhere: (current: Cursor) => Cursor;
 }
 
 const LAST = Number.POSITIVE_INFINITY;
@@ -16,11 +20,14 @@ function workAt(ctx: NavContext, index: number): Work {
 }
 
 /**
- * 「進む」。順番モードは 次ステップ → 次ページ → 次作品、終端なら null。
- * ランダムモードは 次ステップ → 同じ作品内のランダムなページ。
+ * 「進む」。ステップが残っていれば次ステップ。ページを読み終えたら、
+ * ライブラリ全体ランダムなら全体からランダムな場所、
+ * 作品がランダムモードなら同じ作品内のランダムなページ、
+ * 順番モードなら 次ページ → 次作品、終端なら null。
  */
 export function forward(ctx: NavContext, cur: Cursor, stepCount: number): Cursor | null {
   if (cur.step + 1 < stepCount) return { ...cur, step: cur.step + 1 };
+  if (ctx.libraryRandom) return ctx.randomAnywhere(cur);
   const work = workAt(ctx, cur.work);
   if (ctx.modeOf(work) === "random") {
     return { work: cur.work, page: ctx.randomPage(work, cur.page), step: 0 };
@@ -32,10 +39,11 @@ export function forward(ctx: NavContext, cur: Cursor, stepCount: number): Cursor
 
 /**
  * 「戻る」。前ステップ → 前ページ末尾 → 前作品末尾。先頭なら null。
- * ランダムモードでステップ 0 のときも null(呼び出し側が履歴で戻る)。
+ * ランダム(作品ごと / ライブラリ全体)でステップ 0 のときも null(呼び出し側が履歴で戻る)。
  */
 export function backward(ctx: NavContext, cur: Cursor): Cursor | null {
   if (cur.step > 0) return { ...cur, step: cur.step - 1 };
+  if (ctx.libraryRandom) return null;
   const work = workAt(ctx, cur.work);
   if (ctx.modeOf(work) === "random") return null;
   if (cur.page > 0) return { work: cur.work, page: cur.page - 1, step: LAST };
@@ -47,6 +55,7 @@ export function backward(ctx: NavContext, cur: Cursor): Cursor | null {
 }
 
 export function nextPage(ctx: NavContext, cur: Cursor): Cursor | null {
+  if (ctx.libraryRandom) return ctx.randomAnywhere(cur);
   const work = workAt(ctx, cur.work);
   if (ctx.modeOf(work) === "random") {
     return { work: cur.work, page: ctx.randomPage(work, cur.page), step: 0 };

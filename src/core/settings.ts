@@ -1,3 +1,4 @@
+import { SORT_ORDERS, type SortOrder } from "./library";
 import type { FolderMode } from "./types";
 
 export const ZOOM_MIN = 0.5;
@@ -28,9 +29,15 @@ export interface Settings {
   /** ステップ同士の重なり(画面高さに対する割合) */
   overlap: number;
   viewMode: ViewMode;
+  /** 作品の並び順(一覧と、次の作品 / 前の作品 の向き) */
+  sortOrder: SortOrder;
+  /** true ならライブラリ全体のページからランダムに進む(作品ごとの順番 / ランダムより優先) */
+  libraryRandom: boolean;
   lastLibrary: string | null;
   lastWork: string | null;
   folders: Record<string, FolderState>;
+  /** お気に入り。作品のパス → ページ番号(0 始まり、昇順) */
+  favorites: Record<string, number[]>;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -39,9 +46,12 @@ export const DEFAULT_SETTINGS: Settings = {
   zoom: 1,
   overlap: 0.15,
   viewMode: "page",
+  sortOrder: "newest",
+  libraryRandom: false,
   lastLibrary: null,
   lastWork: null,
   folders: {},
+  favorites: {},
 };
 
 function clamp(v: number, min: number, max: number): number {
@@ -70,9 +80,20 @@ function parseFolders(v: unknown): Record<string, FolderState> {
   return out;
 }
 
+function parseFavorites(v: unknown): Record<string, number[]> {
+  if (!v || typeof v !== "object") return {};
+  const out: Record<string, number[]> = {};
+  for (const [path, raw] of Object.entries(v as Record<string, unknown>)) {
+    if (!Array.isArray(raw)) continue;
+    const pages = [...new Set(raw.filter((p): p is number => typeof p === "number" && Number.isInteger(p) && p >= 0))].sort((a, b) => a - b);
+    if (pages.length > 0) out[path] = pages;
+  }
+  return out;
+}
+
 /** 設定ファイルの内容を読む。欠けた項目は既定値、範囲外は丸める、未知の項目は捨てる */
 export function parseSettings(raw: unknown): Settings {
-  if (!raw || typeof raw !== "object") return { ...DEFAULT_SETTINGS, folders: {} };
+  if (!raw || typeof raw !== "object") return { ...DEFAULT_SETTINGS, folders: {}, favorites: {} };
   const r = raw as Record<string, unknown>;
   const d = DEFAULT_SETTINGS;
   return {
@@ -81,9 +102,12 @@ export function parseSettings(raw: unknown): Settings {
     zoom: numberOr(r.zoom, d.zoom, ZOOM_MIN, ZOOM_MAX),
     overlap: numberOr(r.overlap, d.overlap, OVERLAP_MIN, OVERLAP_MAX),
     viewMode: r.viewMode === "strip" ? "strip" : "page",
+    sortOrder: SORT_ORDERS.includes(r.sortOrder as SortOrder) ? (r.sortOrder as SortOrder) : d.sortOrder,
+    libraryRandom: r.libraryRandom === true,
     lastLibrary: stringOrNull(r.lastLibrary),
     lastWork: stringOrNull(r.lastWork),
     folders: parseFolders(r.folders),
+    favorites: parseFavorites(r.favorites),
   };
 }
 
@@ -115,4 +139,24 @@ export function toggleMode(mode: FolderMode): FolderMode {
 
 export function toggleViewMode(mode: ViewMode): ViewMode {
   return mode === "page" ? "strip" : "page";
+}
+
+// ---- お気に入り ----
+
+export function isFavorite(settings: Settings, path: string, page: number): boolean {
+  return settings.favorites[path]?.includes(page) ?? false;
+}
+
+export function favoriteCount(settings: Settings, path: string): number {
+  return settings.favorites[path]?.length ?? 0;
+}
+
+/** そのページのお気に入りを付け外しした新しい設定を返す。ページが 0 件になった作品は項目ごと消す */
+export function toggleFavorite(settings: Settings, path: string, page: number): Settings {
+  const pages = settings.favorites[path] ?? [];
+  const next = pages.includes(page) ? pages.filter((p) => p !== page) : [...pages, page].sort((a, b) => a - b);
+  const favorites = { ...settings.favorites };
+  if (next.length === 0) delete favorites[path];
+  else favorites[path] = next;
+  return { ...settings, favorites };
 }

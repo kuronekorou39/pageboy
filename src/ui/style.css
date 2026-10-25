@@ -94,6 +94,22 @@ body,
 
 .hud .hint {
   color: #888;
+  font-size: 12px;
+}
+
+.hud .heart {
+  color: #666;
+  font-size: 16px;
+}
+
+.hud .heart.on {
+  color: #ff5c7a;
+}
+
+.hud .heart small {
+  font-size: 11px;
+  margin-left: 2px;
+  color: #aaa;
 }
 
 .empty {
@@ -207,11 +223,23 @@ body,
   animation: fadein 180ms ease-out;
 }
 
-/* --- 操作一覧ボタン --- */
-.help-button {
+/* --- 右上のボタン(作品一覧 / 操作一覧) --- */
+.corner {
   position: absolute;
   top: 8px;
   right: 30px;
+  display: flex;
+  gap: 8px;
+  opacity: 0.25;
+  transition: opacity 250ms;
+}
+
+.corner.visible,
+.corner:hover {
+  opacity: 1;
+}
+
+.corner-button {
   width: 30px;
   height: 30px;
   border-radius: 50%;
@@ -221,13 +249,10 @@ body,
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  opacity: 0.25;
-  transition: opacity 250ms;
 }
 
-.help-button.visible,
-.help-button:hover {
-  opacity: 1;
+.corner-button:hover {
+  background: rgba(60, 60, 60, 0.9);
 }
 
 .help-head {
@@ -268,4 +293,151 @@ body,
   white-space: pre-wrap;
   color: #ddd;
   font-size: 12px;
+}
+
+/* --- 作品一覧 --- */
+.list {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.list-panel {
+  width: min(960px, 92vw);
+  height: min(720px, 88vh);
+  display: flex;
+  flex-direction: column;
+  background: #161616;
+  border: 1px solid #333;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.list-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.list-head input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  background: #0d0d0d;
+  color: #eee;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 14px;
+}
+
+.list-head select {
+  background: #0d0d0d;
+  color: #eee;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.list-head .fav-filter {
+  font-size: 13px;
+  color: #ddd;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.list-head .fav-filter.disabled {
+  color: #666;
+  cursor: default;
+}
+
+.list-head .count {
+  font-size: 12px;
+  color: #888;
+  white-space: nowrap;
+}
+
+.list-head .close {
+  background: none;
+  border: 1px solid #555;
+  border-radius: 6px;
+  color: #ccc;
+  font-size: 16px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.list-body {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: 6px 0;
+  list-style: none;
+}
+
+.list-body li {
+  display: grid;
+  grid-template-columns: 7em 10em 1fr 4em 3em;
+  gap: 12px;
+  align-items: baseline;
+  padding: 6px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.list-body li > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.list-body li.cursor {
+  background: #2a3a55;
+}
+
+.list-body li.current .title::before {
+  content: "▶ ";
+  color: #8fd68f;
+}
+
+.list-body .date {
+  color: #999;
+  font-variant-numeric: tabular-nums;
+}
+
+.list-body .author {
+  color: #aaa;
+}
+
+.list-body .pages {
+  color: #999;
+  text-align: right;
+}
+
+.list-body .favs {
+  color: #ff5c7a;
+}
+
+.list-body .none {
+  color: #777;
+  cursor: default;
+  display: block;
+  text-align: center;
+  padding: 30px;
+}
+
+.list-foot {
+  padding: 8px 14px;
+  border-top: 1px solid #2a2a2a;
+  font-size: 12px;
+  color: #888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
