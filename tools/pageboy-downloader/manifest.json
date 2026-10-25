@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "pageboy downloader",
+  "version": "0.2.0",
+  "description": "購読している SubscribeStar / pixiv FANBOX の投稿を、pageboy の規則(作者/日付_種別_キャラ)でフォルダに保存する",
+  "permissions": ["storage", "declarativeNetRequest"],
+  "host_permissions": [
+    "https://subscribestar.art/*",
+    "https://www.subscribestar.com/*",
+    "https://*.cloudfront.net/*",
+    "https://*.fanbox.cc/*",
+    "https://*.pximg.net/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "pageboy downloader を開く" },
+  "content_scripts": [
+    {
+      "matches": ["https://subscribestar.art/*", "https://www.subscribestar.com/*", "https://*.fanbox.cc/*"],
+      "exclude_matches": ["https://api.fanbox.cc/*", "https://downloads.fanbox.cc/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

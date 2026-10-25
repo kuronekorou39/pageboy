@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>pageboy downloader</title>
+    <style>
+      :root { color-scheme: dark; }
+      body { font: 14px/1.5 system-ui, sans-serif; background: #15171a; color: #e6e6e6; margin: 0; padding: 24px; max-width: 960px; }
+      h1 { font-size: 18px; margin: 0 0 16px; }
+      h2 { font-size: 13px; color: #888; margin: 18px 0 6px; font-weight: 600; letter-spacing: 0.05em; }
+      .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+      label { color: #aaa; min-width: 9em; }
+      input[type="text"], input[type="number"], select { background: #222; color: #eee; border: 1px solid #444; border-radius: 6px; padding: 6px 8px; }
+      input[type="text"] { width: 14em; }
+      input[type="text"].wide { width: 30em; }
+      input[type="number"] { width: 6em; }
+      button { background: #2b7cff; color: #fff; border: 0; border-radius: 6px; padding: 8px 14px; cursor: pointer; }
+      button.secondary { background: #3a3f47; }
+      button:disabled { opacity: 0.5; cursor: default; }
+      #folder { color: #9fd; }
+      #log { background: #0d0f11; border: 1px solid #333; border-radius: 6px; padding: 10px; height: 380px; overflow: auto; white-space: pre-wrap; font: 12px/1.5 ui-monospace, Consolas, monospace; margin-top: 12px; }
+      .skip { color: #777; } .ok { color: #8fd68f; } .err { color: #ff8a8a; } .warn { color: #ffd27a; }
+      .note { color: #999; font-size: 12px; margin: 4px 0; }
+      code { color: #cdf; }
+      details { margin-top: 6px; } summary { cursor: pointer; color: #aaa; font-size: 12px; }
+      table.vars { font-size: 12px; border-collapse: collapse; margin-top: 6px; } table.vars td { padding: 2px 10px 2px 0; color: #bbb; } table.vars td:first-child { color: #cdf; font-family: ui-monospace, Consolas, monospace; }
+    </style>
+  </head>
+  <body>
+    <h1>pageboy downloader</h1>
+
+    <h2>どこから</h2>
+    <div class="row">
+      <label>サイト</label>
+      <select id="site">
+        <option value="subscribestar.art">SubscribeStar (.art)</option>
+        <option value="subscribestar.com">SubscribeStar (.com)</option>
+        <option value="fanbox">pixiv FANBOX</option>
+      </select>
+      <label style="min-width: auto">作者</label>
+      <input type="text" id="creator" placeholder="kgym" style="width: 10em" />
+      <span class="note" id="creatorHint"></span>
+    </div>
+    <div class="row">
+      <label>上から</label>
+      <input type="number" id="limit" min="1" placeholder="全部" />
+      <span>件まで</span>
+      <span class="note">まずは 5 件くらいで「名前だけ確かめる」</span>
+    </div>
+
+    <h2>どこへ</h2>
+    <div class="row">
+      <label>保存先</label>
+      <button id="pick" class="secondary">フォルダを選ぶ</button>
+      <span id="folder">未設定</span>
+    </div>
+    <div class="row">
+      <label>作者フォルダ名</label>
+      <input type="text" id="authorTemplate" />
+      <span class="note"><code>{nick}</code> = サイトの表示名、<code>{slug}</code> = URL の作者名</span>
+    </div>
+    <div class="row">
+      <label>投稿フォルダ名</label>
+      <input type="text" id="folderTemplate" class="wide" />
+    </div>
+    <details>
+      <summary>投稿フォルダ名で使える値</summary>
+      <table class="vars">
+        <tr><td>{date}</td><td>投稿日 20261019(<code>{date-}</code> なら 2026-10-19、<code>{year}</code> なら 2026)</td></tr>
+        <tr><td>{id}</td><td>投稿 ID</td></tr>
+        <tr><td>{title}</td><td>投稿のタイトル(SubscribeStar にはタイトルがないので本文の全行をつないだもの)</td></tr>
+        <tr><td>{line1} {line2} {line3}</td><td>本文の 1〜3 行目をそのまま</td></tr>
+        <tr><td>{kind}</td><td>本文 2 行目(1 行だけならその行)を種別に正規化。commission / manga / illust / sketch 以外は空</td></tr>
+        <tr><td>{chars}</td><td>本文 1 行目のキャラ名。<code>/</code> <code>&amp;</code> <code>and</code> を <code>／</code> に、50 文字で切る</td></tr>
+        <tr><td>{tags} {tag1}</td><td>投稿のタグ(全部を ／ でつないだもの / 最初の 1 つ)</td></tr>
+        <tr><td>{nick} {slug}</td><td>作者の表示名 / URL の作者名</td></tr>
+        <tr><td>{site}</td><td>サイト名。SubscribeStar / FANBOX</td></tr>
+      </table>
+      <p class="note">フォルダ名に使えない文字は ／ に置き換え、末尾の空白とピリオドは落とし、120 文字で切ります。設定はサイトごとに別に覚えます。</p>
+    </details>
+
+    <h2>どのくらいの速さで</h2>
+    <div class="row">
+      <label>ファイルの間隔</label>
+      <input type="number" id="fileDelay" min="0" step="100" />
+      <span>ms</span>
+      <label style="min-width: auto">投稿の間隔</label>
+      <input type="number" id="postDelay" min="0" step="100" />
+      <span>ms</span>
+    </div>
+    <p class="note">同時には 1 つしか取りません。一覧の次ページを読む前は「投稿の間隔」、FANBOX で投稿の本文を 1 件読む前は「ファイルの間隔」ぶん待ちます。</p>
+
+    <div class="row" style="margin-top: 14px">
+      <button id="start">保存を始める</button>
+      <button id="dry" class="secondary">名前だけ確かめる</button>
+      <button id="stop" class="secondary" disabled>止める</button>
+    </div>
+    <p class="note">
+      作者フォルダの <code>pageboy-downloads.json</code> に保存済みの投稿を記録し、次回はそれとファイルの実在を見て飛ばします。
+    </p>
+    <div id="log"></div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
